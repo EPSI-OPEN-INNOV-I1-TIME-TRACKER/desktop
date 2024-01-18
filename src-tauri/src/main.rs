@@ -27,10 +27,12 @@ fn get_active_window_info() -> Result<SerializableActiveWindow, String> {
 fn main() {
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let hide = CustomMenuItem::new("hide".to_string(), "Hide");
+    let show = CustomMenuItem::new("show".to_string(), "Show"); // Nouvel élément de menu pour afficher la fenêtre
     let tray_menu = SystemTrayMenu::new()
         .add_item(quit)
         .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(hide);
+        .add_item(hide)
+        .add_item(show); 
 
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
@@ -46,6 +48,12 @@ fn main() {
                     "hide" => {
                         if let Some(window) = app.get_window("main") {
                             window.hide().unwrap();
+                        }
+                    }
+                    "show" => { // Gérez l'événement pour afficher la fenêtre
+                        if let Some(window) = app.get_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap(); // Mettez la fenêtre au premier plan et donnez-lui le focus
                         }
                     }
                     _ => {}

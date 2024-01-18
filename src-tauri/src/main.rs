@@ -4,14 +4,13 @@
 )]
 
 use serde::Serialize;
-use tauri::{generate_context, generate_handler, Builder};
+use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager, WindowEvent, generate_context, generate_handler, Builder};
+use tauri::SystemTrayMenuItem;
 
-// Structure intermédiaire sérialisable
 #[derive(Serialize)]
 struct SerializableActiveWindow {
     title: String,
     app_name: String,
-    // Ajoutez ici d'autres champs si nécessaire
 }
 
 #[tauri::command]
@@ -20,15 +19,47 @@ fn get_active_window_info() -> Result<SerializableActiveWindow, String> {
         Ok(active_window) => Ok(SerializableActiveWindow {
             title: active_window.title,
             app_name: active_window.app_name,
-            // Initialisez ici d'autres champs si nécessaire
         }),
         Err(_) => Err("Failed to get active window information".into()),
     }
 }
 
 fn main() {
+    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let hide = CustomMenuItem::new("hide".to_string(), "Hide");
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(quit)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(hide);
+
+    let system_tray = SystemTray::new().with_menu(tray_menu);
+
     Builder::default()
         .invoke_handler(generate_handler![get_active_window_info])
+        .system_tray(system_tray)
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::MenuItemClick { id, .. } => {
+                match id.as_str() {
+                    "quit" => {
+                        std::process::exit(0);
+                    }
+                    "hide" => {
+                        if let Some(window) = app.get_window("main") {
+                            window.hide().unwrap();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        })
+        .on_window_event(|event| match event.event() {
+            WindowEvent::CloseRequested { api, .. } => {
+                event.window().hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .run(generate_context!())
         .expect("error while running tauri application");
 }

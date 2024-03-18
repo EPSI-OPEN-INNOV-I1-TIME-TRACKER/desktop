@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="MyFragmentRegistryEntries" Guid="*">  
+        <RegistryKey
+          Root="HKCU"
+          Key="Software\Google\Chrome\NativeMessagingHosts\com.epsi.timetracker"
+          Action="createAndRemoveOnUninstall"
+        >    
+          <RegistryValue
+            Type="string"
+            Name="JSON_Path"
+            Value="C:\\Users\\Edward\\Documents\\time-tracker\\test.json"
+          />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

@@ -9,7 +9,7 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 
     <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="ExecuteRegFileComponent" Guid="{YOUR-GUID-HERE}">
+      <Component Id="ExecuteRegFileComponent" Guid="{F725678B-EBF9-4AA3-A6AF-279A29FDA50F}">
         <CreateFolder />
         <CustomActionRef Id="ExecuteRegFile" />
         <Condition><![CDATA[NOT Installed]]></Condition>

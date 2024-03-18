@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::command;
 
 #[derive(Serialize)]
 pub struct SerializableActiveWindow {
@@ -7,7 +6,7 @@ pub struct SerializableActiveWindow {
     pub app_name: String,
 }
 
-#[command]
+#[tauri::command]
 pub fn get_active_window_info() -> Result<SerializableActiveWindow, String> {    // Hypothetical call to the fictional library `active_win_pos_rs`
     // This library is supposed to provide the active window's title and app name.
     // Since this is a fictional example, replace this with your actual library call.

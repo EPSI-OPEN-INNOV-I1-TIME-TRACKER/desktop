@@ -1,3 +1,3 @@
 Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.epsi.timetracker]
-@="C:\\path\\to\\nmh-manifest.json"
+@="C:\Users\Edward\Documents\time-tracker\test.json"

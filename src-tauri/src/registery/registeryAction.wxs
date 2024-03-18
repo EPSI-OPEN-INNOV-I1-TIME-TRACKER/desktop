@@ -2,7 +2,7 @@
   <Fragment>
     <CustomAction Id="ExecuteRegFile" BinaryKey="WixCA" DllEntry="CAQuietExec" Execute="deferred" Return="check" Impersonate="no">
       <![CDATA[
-      reg import "../registery/winRegistery.reg"
+      reg import "[INSTALLFOLDER]\\src\\registery\\winRegistery.reg"
       ]]>
     </CustomAction>
 

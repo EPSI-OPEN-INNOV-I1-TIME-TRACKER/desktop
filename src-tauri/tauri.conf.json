@@ -48,7 +48,10 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "wix": {
+          "fragmentPaths": ["./src-tauri/src/actions/registeryAction.wxs"]
+        }
       }
     },
     "security": {

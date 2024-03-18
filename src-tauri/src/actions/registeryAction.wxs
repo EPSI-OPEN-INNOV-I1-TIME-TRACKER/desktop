@@ -1,0 +1,22 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <CustomAction Id="ExecuteRegFile" BinaryKey="WixCA" DllEntry="CAQuietExec" Execute="deferred" Return="check" Impersonate="no">
+      <![CDATA[
+      reg import "../registery/winRegistery.reg"
+      ]]>
+    </CustomAction>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="ExecuteRegFileComponent" Guid="{YOUR-GUID-HERE}">
+        <CreateFolder />
+        <CustomActionRef Id="ExecuteRegFile" />
+        <Condition><![CDATA[NOT Installed]]></Condition>
+        <InstallExecuteSequence>
+          <Custom Action="ExecuteRegFile" After="InstallFiles">NOT Installed</Custom>
+        </InstallExecuteSequence>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

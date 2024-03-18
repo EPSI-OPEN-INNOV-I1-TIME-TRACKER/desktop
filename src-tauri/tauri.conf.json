@@ -50,7 +50,8 @@
 				"digestAlgorithm": "sha256",
 				"timestampUrl": "",
 				"wix": {
-					"fragmentPaths": ["./src/registery/registeryAction.wxs"]
+					"fragmentPaths": ["./src/registery/registeryAction.wxs"],
+          "componentRefs": ["MyFragmentRegistryEntries"]
 				}
 			}
 		},
@@ -62,6 +63,7 @@
 		},
 		"windows": [
 			{
+
 				"fullscreen": false,
 				"height": 600,
 				"resizable": true,

@@ -11,6 +11,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::async_runtime::spawn;
 use tokio::time::sleep as async_sleep;
+use rusqlite::{Connection, Result as SqlResult};
+use warp::Filter;
 
 #[derive(Serialize)]
 struct SerializableActiveWindow {
@@ -50,7 +52,6 @@ fn get_app_usage(data: State<'_, SharedAppUsageData>) -> HashMap<String, Duratio
     data.lock().unwrap().time_spent.clone()
 }
 
-
 #[tauri::command]
 fn get_current_window_time(data: State<'_, SharedAppUsageData>) -> Result<Duration, String> {
     let data = data.lock().unwrap();
@@ -64,16 +65,64 @@ fn get_current_window_time(data: State<'_, SharedAppUsageData>) -> Result<Durati
     }
 }
 
+fn connect_to_db() -> SqlResult<Connection> {
+    Connection::open("window_tracker.db")
+}
+
+fn create_tables(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS window_usage (
+            id INTEGER PRIMARY KEY,
+            window_title TEXT NOT NULL,
+            app_name TEXT NOT NULL,
+            duration INTEGER NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )", []
+    )?;
+    Ok(())
+}
+
+async fn run_websocket_server() {
+    let websocket_route = warp::path("ws")
+        .and(warp::ws())
+        .map(|ws: warp::ws::Ws| {
+            ws.on_upgrade(|websocket| {
+                async move {
+                    use warp::ws::{Message, WebSocket};
+
+                    let (mut tx, mut rx) = websocket.split();
+                    while let Some(result) = rx.next().await {
+                        match result {
+                            Ok(msg) => {
+                                if msg.is_text() {
+                                    tx.send(Message::text("Echo: " + msg.to_str().unwrap())).await.unwrap();
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("websocket error: {:?}", e);
+                                break;
+                            }
+                        }
+                    }
+                }
+            })
+        });
+
+    warp::serve(websocket_route)
+        .run(([127, 0, 0, 1], 3030))
+        .await;
+}
 
 fn main() {
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let hide = CustomMenuItem::new("hide".to_string(), "Hide");
-    let show = CustomMenuItem::new("show".to_string(), "Show"); // Nouvel élément de menu pour afficher la fenêtre
+    let show = CustomMenuItem::new("show".to_string(), "Show");
+
     let tray_menu = SystemTrayMenu::new()
         .add_item(quit)
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(hide)
-        .add_item(show); 
+        .add_item(show);
 
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
@@ -88,18 +137,18 @@ fn main() {
                 match id.as_str() {
                     "quit" => {
                         std::process::exit(0);
-                    }
+                    },
                     "hide" => {
                         if let Some(window) = app.get_window("main") {
                             window.hide().unwrap();
                         }
-                    }
-                    "show" => { // Gérez l'événement pour afficher la fenêtre
+                    },
+                    "show" => {
                         if let Some(window) = app.get_window("main") {
                             window.show().unwrap();
-                            window.set_focus().unwrap(); // Mettez la fenêtre au premier plan et donnez-lui le focus
+                            window.set_focus().unwrap();
                         }
-                    }
+                    },
                     _ => {}
                 }
             }
@@ -112,8 +161,11 @@ fn main() {
             }
             _ => {}
         })
-        .setup(move |_app| {
+        .setup(move |app| {
             let app_usage_data_clone = app_usage_data.clone();
+            let conn = connect_to_db().expect("Failed to connect to database");
+            create_tables(&conn).expect("Failed to create tables");
+
             spawn(async move {
                 let mut last_app_name = String::new();
                 loop {
@@ -129,7 +181,7 @@ fn main() {
                             let entry = data.time_spent.entry(active_window.app_name).or_insert_with(Duration::default);
                             *entry += Instant::now().duration_since(last_active_clone);
                             data.last_active = Instant::now();
-                        }
+                        },
                         Err(_) => {}
                     }
                 }
@@ -138,4 +190,9 @@ fn main() {
         })
         .run(generate_context!())
         .expect("error while running tauri application");
+
+    // Before running the Tauri Builder
+    std::thread::spawn(|| {
+        tokio::runtime::Runtime::new().unwrap().block_on(run_websocket_server());
+    });
 }

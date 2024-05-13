@@ -9,10 +9,13 @@ use tauri::SystemTrayMenuItem;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use futures_util::SinkExt;
 use tauri::async_runtime::spawn;
 use tokio::time::sleep as async_sleep;
 use rusqlite::{Connection, Result as SqlResult};
 use warp::Filter;
+use futures_util::stream::{SplitSink, SplitStream, StreamExt};
+use warp::ws::{Message, WebSocket};
 
 #[derive(Serialize)]
 struct SerializableActiveWindow {
@@ -88,14 +91,16 @@ async fn run_websocket_server() {
         .map(|ws: warp::ws::Ws| {
             ws.on_upgrade(|websocket| {
                 async move {
-                    use warp::ws::{Message, WebSocket};
-
-                    let (mut tx, mut rx) = websocket.split();
+                    let (mut tx, mut rx): (SplitSink<WebSocket, Message>, SplitStream<WebSocket>) = websocket.split();
                     while let Some(result) = rx.next().await {
                         match result {
                             Ok(msg) => {
                                 if msg.is_text() {
-                                    tx.send(Message::text("Echo: " + msg.to_str().unwrap())).await.unwrap();
+                                    let response_text = format!("Echo: {}", msg.to_str().unwrap());
+                                    if let Err(e) = tx.send(Message::text(response_text)).await {
+                                        eprintln!("websocket send error: {}", e);
+                                        break;
+                                    }
                                 }
                             },
                             Err(e) => {

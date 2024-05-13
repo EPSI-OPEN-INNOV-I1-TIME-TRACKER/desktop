@@ -4,18 +4,14 @@
 )]
 
 use serde::Serialize;
-use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager, WindowEvent, generate_context, generate_handler, Builder, State};
+use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager, WindowEvent, generate_context, generate_handler, Builder};
 use tauri::SystemTrayMenuItem;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use futures_util::SinkExt;
 use tauri::async_runtime::spawn;
 use tokio::time::sleep as async_sleep;
-use rusqlite::{Connection, Result as SqlResult};
-use warp::Filter;
-use futures_util::stream::{SplitSink, SplitStream, StreamExt};
-use warp::ws::{Message, WebSocket};
+use rusqlite::{Connection, params, Result as SqlResult};
 
 #[derive(Serialize)]
 struct SerializableActiveWindow {
@@ -48,26 +44,6 @@ impl Default for AppUsageData {
     }
 }
 
-type SharedAppUsageData = Arc<Mutex<AppUsageData>>;
-
-#[tauri::command]
-fn get_app_usage(data: State<'_, SharedAppUsageData>) -> HashMap<String, Duration> {
-    data.lock().unwrap().time_spent.clone()
-}
-
-#[tauri::command]
-fn get_current_window_time(data: State<'_, SharedAppUsageData>) -> Result<Duration, String> {
-    let data = data.lock().unwrap();
-    match active_win_pos_rs::get_active_window() {
-        Ok(active_window) => {
-            data.time_spent.get(&active_window.app_name)
-                .cloned()
-                .ok_or_else(|| "No data available for the current window".to_string())
-        },
-        Err(_) => Err("Failed to get active window information".into()),
-    }
-}
-
 fn connect_to_db() -> SqlResult<Connection> {
     Connection::open("window_tracker.db")
 }
@@ -75,50 +51,28 @@ fn connect_to_db() -> SqlResult<Connection> {
 fn create_tables(conn: &Connection) -> SqlResult<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS window_usage (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             window_title TEXT NOT NULL,
             app_name TEXT NOT NULL,
             duration INTEGER NOT NULL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )", []
+        )", [],
     )?;
     Ok(())
 }
 
-async fn run_websocket_server() {
-    let websocket_route = warp::path("ws")
-        .and(warp::ws())
-        .map(|ws: warp::ws::Ws| {
-            ws.on_upgrade(|websocket| {
-                async move {
-                    let (mut tx, mut rx): (SplitSink<WebSocket, Message>, SplitStream<WebSocket>) = websocket.split();
-                    while let Some(result) = rx.next().await {
-                        match result {
-                            Ok(msg) => {
-                                if msg.is_text() {
-                                    let response_text = format!("Echo: {}", msg.to_str().unwrap());
-                                    if let Err(e) = tx.send(Message::text(response_text)).await {
-                                        eprintln!("websocket send error: {}", e);
-                                        break;
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                eprintln!("websocket error: {:?}", e);
-                                break;
-                            }
-                        }
-                    }
-                }
-            })
-        });
-
-    warp::serve(websocket_route)
-        .run(([127, 0, 0, 1], 3030))
-        .await;
+fn update_usage(conn: &Connection, app_name: &str, duration: i64) -> SqlResult<()> {
+    conn.execute(
+        "INSERT INTO window_usage (window_title, app_name, duration, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        params![app_name, app_name, duration],
+    )?;
+    Ok(())
 }
 
 fn main() {
+    let conn = Arc::new(Mutex::new(connect_to_db().expect("Failed to connect to database")));
+    create_tables(&conn.lock().unwrap()).expect("Failed to create tables");
+
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let hide = CustomMenuItem::new("hide".to_string(), "Hide");
     let show = CustomMenuItem::new("show".to_string(), "Show");
@@ -135,19 +89,19 @@ fn main() {
 
     Builder::default()
         .manage(app_usage_data.clone())
-        .invoke_handler(generate_handler![get_active_window_info, get_app_usage, get_current_window_time])
+        .invoke_handler(generate_handler![get_active_window_info])
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => {
                 match id.as_str() {
                     "quit" => {
                         std::process::exit(0);
-                    },
+                    }
                     "hide" => {
                         if let Some(window) = app.get_window("main") {
                             window.hide().unwrap();
                         }
-                    },
+                    }
                     "show" => {
                         if let Some(window) = app.get_window("main") {
                             window.show().unwrap();
@@ -166,28 +120,27 @@ fn main() {
             }
             _ => {}
         })
-        .setup(move |app| {
+        .setup(move |_app| {
             let app_usage_data_clone = app_usage_data.clone();
-            let conn = connect_to_db().expect("Failed to connect to database");
-            create_tables(&conn).expect("Failed to create tables");
-
+            let conn_clone = conn.clone();
             spawn(async move {
                 let mut last_app_name = String::new();
                 loop {
                     async_sleep(Duration::from_secs(1)).await;
-                    match get_active_window_info() {
-                        Ok(active_window) => {
-                            let mut data = app_usage_data_clone.lock().unwrap();
-                            if last_app_name != active_window.app_name {
-                                data.last_active = Instant::now();
-                                last_app_name = active_window.app_name.clone();
-                            }
-                            let last_active_clone = data.last_active;
-                            let entry = data.time_spent.entry(active_window.app_name).or_insert_with(Duration::default);
-                            *entry += Instant::now().duration_since(last_active_clone);
+                    if let Ok(active_window) = get_active_window_info() {
+                        let mut data = app_usage_data_clone.lock().unwrap();
+                        if last_app_name != active_window.app_name {
+                            last_app_name = active_window.app_name.clone();
                             data.last_active = Instant::now();
-                        },
-                        Err(_) => {}
+                        }
+                        let last_active_clone = data.last_active;
+                        let entry = data.time_spent.entry(active_window.app_name.clone()).or_insert_with(Duration::default);
+                        *entry += Instant::now().duration_since(last_active_clone);
+
+                        data.last_active = Instant::now();
+                        let duration = data.time_spent.get(&active_window.app_name).unwrap().as_secs() as i64;
+                        let conn = conn_clone.lock().unwrap();
+                        update_usage(&conn, &active_window.app_name, duration).expect("Failed to update database");
                     }
                 }
             });
@@ -195,9 +148,4 @@ fn main() {
         })
         .run(generate_context!())
         .expect("error while running tauri application");
-
-    // Before running the Tauri Builder
-    std::thread::spawn(|| {
-        tokio::runtime::Runtime::new().unwrap().block_on(run_websocket_server());
-    });
 }

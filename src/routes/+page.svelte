@@ -15,6 +15,7 @@
     let windowChangeData: number[] = Array(24).fill(0); // Données pour le graphique
     let timeSpent: TimeSpent = { hours: 0, minutes: 0, seconds: 0 };
     let rankingPeriod: string = 'month'; // 'month' ou 'year'
+    let isDarkMode: boolean = false;
   
     interface ActiveWindow {
       app_name: string;
@@ -132,24 +133,35 @@
         rankingPeriod = selectElement.value;
       }
     }
+  
+    function toggleDarkMode() {
+      isDarkMode = !isDarkMode;
+      document.body.classList.toggle('dark-mode', isDarkMode);
+    }
   </script>
   
-  <div class="info-container">
-    <div class="info-card">
-      <button on:click={fetchActiveWindowInfo}>Fetch active window info</button>
+  <div class="main-container">
+    <div class="left-column">
+      <div class="info-card">
+        <button on:click={toggleDarkMode}>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</button>
+      </div>
+      <div class="info-card">
+        <p>Active Window: {activeWindowText}</p>
+      </div>
+      <div class="info-card">
+        <p>Time Spent: {timeSpent.hours} hours {timeSpent.minutes} minutes {timeSpent.seconds} seconds</p>
+      </div>
+      <div class="info-card">
+        <p>Number of Window Switches: {windowChangeCount}</p>
+      </div>
     </div>
-    <div class="info-card">
-      <p>Active Window: {activeWindowText}</p>
+    <div class="right-column">
+      <div class="info-card chart-card">
+        <canvas id="windowChangeChart"></canvas>
+      </div>
     </div>
-    <div class="info-card">
-      <p>Time Spent: {timeSpent.hours} hours {timeSpent.minutes} minutes {timeSpent.seconds} seconds</p>
-    </div>
-    <div class="info-card">
-      <p>Number of Window Switches: {windowChangeCount}</p>
-    </div>
-    <div class="info-card chart-card">
-      <canvas id="windowChangeChart"></canvas>
-    </div>
+  </div>
+  <div class="most-opened-apps-container">
     <div class="info-card">
       <h3>Most Opened Apps</h3>
       {#each topApps as app, index}
@@ -158,6 +170,8 @@
         </button>
       {/each}
     </div>
+  </div>
+  <div class="window-history-container">
     <div class="info-card">
       <h3>Ranking for {rankingPeriod}</h3>
       <select on:change={handleRankingPeriodChange}>
@@ -176,4 +190,4 @@
         </div>
       {/if}
     </div>
-  </div>  
+  </div>

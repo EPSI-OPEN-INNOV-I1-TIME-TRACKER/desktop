@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params, Result as SqlResult};
+use rusqlite::{Connection, OptionalExtension, params, Result as SqlResult};
 
 pub fn connect_to_db() -> SqlResult<Connection> {
     let conn = Connection::open("window_tracker.db")?;

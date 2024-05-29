@@ -1,4 +1,3 @@
-use serde_json::Value;
 use serde::Serialize;
 
 #[derive(Serialize)]

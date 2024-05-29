@@ -33,7 +33,8 @@ fn main() {
     Builder::default()
         .manage(app_usage_data.clone())
         .invoke_handler(tauri::generate_handler![
-            commands::get_active_window_info
+            commands::get_active_window_info,
+            commands::get_tracked_apps
         ])
         .system_tray(system_tray)
         .on_system_tray_event(move |app, event| match event {

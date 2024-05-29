@@ -1,10 +1,34 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api/tauri';
 	import { onMount } from 'svelte';
-	import { ClockSolid, CirclePauseSolid } from 'flowbite-svelte-icons'
+	import Icon from '@iconify/svelte';
+	import Modal from './Modal.svelte';
+	import Switch from './Switch.svelte'
+
+	let apps = [
+		'Visual Studio Code',
+		'Discord',
+		'Spotify',
+		'Warframe',
+		'Google Chrome',
+		'Microsoft Edge',
+		'Steam',
+		'Epic Games',
+		'Valorant',
+		'League of Legends'
+	];
+
+	let timeSpentToday: string = '00:00:00';
+	let timeSpentSelectedApp: string = '00:00:00';
+	let connectedUser: string = 'John Doe';
+	let sliderValue: any;
 
 	let activeWindowText: string = 'No active window';
 	let timeSpent: object = {};
+
+	let showModal = false;
+	let modalTitle: string = ''; // Define the modalTitle variable
+	let modalType: string = ''; // Define the modalType variable
 
 	interface ActiveWindow {
 		app_name: string;
@@ -28,6 +52,22 @@
 		return duration;
 	}
 
+	function openSettingsModal() {
+		modalTitle = '';
+		modalType = 'settings';
+		showModal = true;
+	}
+
+	function openUserModal() {
+		modalTitle = '';
+		modalType = 'user';
+		showModal = true;
+	}
+
+	function closeModal() {
+		showModal = false;
+	}
+
 	onMount(() => {
 		const intervalId = setInterval(fetchActiveWindowInfo, 1000);
 		return () => clearInterval(intervalId);
@@ -37,51 +77,73 @@
 <div id="app">
 	<header>
 		<div id="left-section">
-			<ClockSolid size="xs" />
+			<Icon icon="mdi:clock" width="48" height="48" />
 		</div>
 		<div id="middle-section">
 			<h1>TIME'TRACKER</h1>
 		</div>
 		<div id="right-section">
-			<CirclePauseSolid size="xs" />
-			<!-- Logo "Paramètres" -->
-			<!-- Logo "Utilisateur" -->
+			<button class="header-btn" on:click={openSettingsModal}>
+				<Icon icon="mdi:settings" width="48" height="48" />
+			</button>
+			<button class="header-btn" on:click={openUserModal}>
+				<Icon icon="mdi:user" width="48" height="48" />
+			</button>
 		</div>
 	</header>
 
 	<main>
 		<div id="left-side-menu">
 			<ul>
-				<li>Visual Studio Code</li>
-				<li>Discord</li>
-				<li>Spotify</li>
-				<li>Warframe</li>
+				{#each apps as app}
+					<li>{app}</li>
+				{/each}
 			</ul>
-			<div id="manage-btn">
+			<button id="manage-btn">
 				<p>GERER</p>
-			</div>
+			</button>
 		</div>
 
 		<div id="tracking">
-			<!-- Insérer section graphique pour le tracking -->
+			<!-- Insérer section graphique pour le tracking d'utilisation par application -->
 		</div>
 
 		<div>
-			<!-- Insérer la section avec les applications les plus ouvertes -->
+			<!-- Insérer la section avec les applications les plus ouvertes (podium) -->
 		</div>
 	</main>
 
 	<footer>
-		<div class="time-tracking">
+		<div class="time-counter">
 			<h4>TEMPS PC AUJOURD'HUI :</h4>
-			<p>04:06:45</p>
+			<div class="time-counter-display">
+				<p>{timeSpentToday}</p>
+			</div>
 		</div>
 
-		<div class="time-tracking">
+		<div class="time-counter">
 			<h4>TEMPS D'APPLICATION SELECTIONNEE :</h4>
-			<p>04:06:45</p>
+			<div class="time-counter-display">
+				<p>{timeSpentSelectedApp}</p>
+			</div>
 		</div>
 	</footer>
+
+	{#if showModal}
+		<Modal {modalTitle} on:close={closeModal}>
+			{#if modalType === 'settings'}
+				<div>
+					<h2>Paramètres</h2>
+					<Switch bind:value={sliderValue} label="Activer les notifications" fontSize={14} design="slider" />
+				</div>
+			{:else if modalType === 'user'}
+				<div>
+					<h2>Vous êtes connecté en tant que...</h2>
+					<h3>{connectedUser}</h3>
+				</div>
+			{/if}
+		</Modal>
+	{/if}
 </div>
 
 <style>
@@ -92,10 +154,8 @@
 		font-family: Arial, sans-serif;
 	}
 
-	body,
-	html {
-		height: 100%;
-		background-color: #eee6d8;
+	:global(body) {
+		background-color: #e4e1dc;
 	}
 
 	#app {
@@ -114,15 +174,11 @@
 		border-radius: 10px 10px 10px 10px;
 	}
 
-	header #left-section,
-	header #middle-section,
-	header #right-section {
-		display: flex;
-		align-items: center;
-	}
-
-	header h1 {
-		margin: 0;
+	.header-btn {
+		background-color: transparent;
+		color: #eee6d8;
+		border: none;
+		cursor: pointer;
 	}
 
 	main {
@@ -171,10 +227,10 @@
 	#tracking {
 		flex-grow: 1;
 		padding: 20px;
-		background-color: #ffffff;
 		margin: 20px;
 		border-radius: 8px;
-		border: 2px solid #d8d8d8;
+		border: 5px double #804000;
+		background-color: #ffffff;
 	}
 
 	footer {
@@ -183,13 +239,21 @@
 		padding: 30px 60px;
 		border-radius: 10px 10px 10px 10px;
 		background-color: #804000;
-		color: white;
+		color: #eee6d8;
 	}
 
-	footer .time-tracking {
+	footer .time-counter {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+	}
+
+	.time-counter-display {
+		background-color: #ffffff;
+		color: #000000;
+		border-radius: 5px;
+		padding: 10px;
+		margin-top: 10px;
 	}
 
 	footer h4 {

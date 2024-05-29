@@ -77,39 +77,21 @@ fn main() {
                     async_sleep(Duration::from_secs(1)).await;
                     if let Ok(active_window) = commands::get_active_window_info() {
                         let mut data = app_usage_data_clone.lock().unwrap();
-                        let app_name_changed = last_app_name!= active_window.app_name;
-                        
-                        // Calculate the duration since the last active time outside of the mutable borrow scope
-                        let duration_since_last_active = if let Some(entry) = data.time_spent.get(&active_window.app_name) {
-                            data.last_active.elapsed()
-                        } else {
-                            Duration::ZERO
-                        };
-                        
-                        // Now, perform the mutable operation using the pre-calculated duration
-                        if let Some(entry) = data.time_spent.get_mut(&active_window.app_name) {
-                            if app_name_changed {
-                                // Update the duration spent for the current app name
-                                update_time_spent(&conn_clone2.lock().unwrap(), entry.0, entry.1.as_secs() as i64).unwrap();
-                                entry.1 = Duration::default();
-                                false
-                            } else {
-                                // Extend the existing duration spent
-                                entry.1 += duration_since_last_active;
-                                true
-                            }
-                        } else if app_name_changed {
-                            // Handle the case where the app name has changed and there was no previous entry
-                            let window_id = app::db::update_or_insert_window(&conn_clone2.lock().unwrap(), &active_window.title, &active_window.app_name).unwrap();
-                            data.time_spent.insert(active_window.app_name.clone(), (window_id, Duration::default()));
-                            false
-                        } else {
-                            // Handle the case where the app name has not changed and there was no previous entry
-                            data.time_spent.entry(active_window.app_name.clone()).or_insert((0, Duration::default())).1 += duration_since_last_active;
-                            true
-                        };
+                        let current_time = Instant::now();
+                        let elapsed_time = current_time.duration_since(data.last_active);
                 
-                        // No need to update last_active here as it's handled outside the mutable borrow scope
+                        // Update last active time
+                        data.last_active = current_time;
+                
+                        // If there's already an entry for the app, update its duration
+                        if let Some(entry) = data.time_spent.get_mut(&active_window.app_name) {
+                            entry.1 += elapsed_time;
+                        } else {
+                            // No entry exists, create one
+                            let window_id = app::db::update_or_insert_window(&conn_clone2.lock().unwrap(), &active_window.title, &active_window.app_name).unwrap();
+                            data.time_spent.insert(active_window.app_name.clone(), (window_id, elapsed_time));
+                        }
+                
                         last_app_name = active_window.app_name.clone();
                     }
                 }                

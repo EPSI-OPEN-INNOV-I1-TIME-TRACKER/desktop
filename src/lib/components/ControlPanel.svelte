@@ -6,11 +6,11 @@
 	export let onToggleAutoRefresh: () => void;
 </script>
 
-<div class="flex items-center mb-4">
-	<button class="p-2 bg-blue-500 text-white rounded mr-2" on:click={onManualRefresh}
+<div class="mb-4 flex items-center">
+	<button class="mr-2 rounded bg-blue-500 p-2 text-white" on:click={onManualRefresh}
 		>Manual Refresh</button
 	>
-	<button class="p-2 bg-green-500 text-white rounded" on:click={onToggleAutoRefresh}>
+	<button class="rounded bg-green-500 p-2 text-white" on:click={onToggleAutoRefresh}>
 		{#if $autoRefresh}
 			Disable Auto-Refresh
 		{:else}

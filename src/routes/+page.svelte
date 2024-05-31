@@ -8,19 +8,7 @@
 	import BarChart from './BarChart.svelte';
 	import Chart from 'chart.js/auto';
 
-	let apps = [
-		'Visual Studio Code',
-		'Discord',
-		'Spotify',
-		'Warframe',
-		'Google Chrome',
-		'Microsoft Edge',
-		'Steam',
-		'Epic Games',
-		'Valorant',
-		'League of Legends'
-	];
-
+	let apps: string[] = [];
 	let timeSpentToday: string = '00:00:00';
 	let timeSpentSelectedApp: string = '00:00:00';
 	let connectedUser: string = 'John Doe';
@@ -31,10 +19,9 @@
 	let windowChangeCount: number = 0;
 	let lastWindow: string | null = null;
 	let lastCheckTime: number = Date.now();
-	let showHistory: boolean = false;
 	let appTime: Map<string, number> = new Map();
 	let topApps: { name: string; time: TimeSpent }[] = [];
-	let windowChangeData: number[] = Array(24).fill(0); // Données pour le graphique
+	let windowChangeData: number[] = Array(24).fill(0); // Data for the chart
 	let timeSpent: TimeSpent = { hours: 0, minutes: 0, seconds: 0 };
 
 	let showModal = false;
@@ -62,7 +49,12 @@
 				windowChangeCount++;
 				activeWindowText = activeWindow.app_name;
 				activeWindowHistory.unshift(activeWindow.app_name);
-				updateWindowChangeData(); // Met à jour les données du graphique
+				updateWindowChangeData(); // Update chart data
+
+				// Update app list
+				if (!apps.includes(activeWindow.app_name)) {
+					apps = [activeWindow.app_name, ...apps];
+				}
 			}
 
 			const elapsedTime = now - lastCheckTime;
@@ -103,6 +95,14 @@
 		const hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
 
 		return { hours, minutes, seconds };
+	}
+
+	function handleAppClose(appName: string) {
+		apps = apps.filter((app) => app !== appName);
+	}
+
+	function handleClearApps() {
+		apps = [];
 	}
 
 	let windowChangeChart: Chart<'bar', number[], string>;
@@ -185,7 +185,7 @@
 
 	<main>
 		<div id="left-side-menu">
-			<ToggleList {apps} {activeApp} onToggle={handleToggle} />
+			<ToggleList {apps} {activeApp} onToggle={handleToggle} onClear={handleClearApps} />
 		</div>
 
 		<div id="tracking">
@@ -193,7 +193,7 @@
 		</div>
 
 		<div>
-			<!-- Insérer la section avec les applications les plus ouvertes (podium) -->
+			<!-- Insert the section with the most opened apps (podium) -->
 		</div>
 	</main>
 

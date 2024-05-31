@@ -2,21 +2,29 @@
 	export let apps: string[] = [];
 	export let activeApp: string;
 	export let onToggle: (app: string) => void;
+	export let onClear: () => void;
 
 	function handleToggle(app: string) {
 		onToggle(app);
 	}
+
+	function handleClear() {
+		onClear();
+	}
 </script>
 
-<ul>
-	{#each apps as app}
-		<li class:active={activeApp === app}>
-			<button on:click={() => handleToggle(app)}>
-				{app}
-			</button>
-		</li>
-	{/each}
-</ul>
+<div>
+	<button on:click={handleClear}>CLEAR</button>
+	<ul>
+		{#each apps as app}
+			<li class:active={activeApp === app}>
+				<button on:click={() => handleToggle(app)}>
+					{app}
+				</button>
+			</li>
+		{/each}
+	</ul>
+</div>
 
 <style>
 	ul {
@@ -26,6 +34,7 @@
 
 	li {
 		display: flex;
+		font-size: medium;
 		align-items: center;
 		justify-content: space-between;
 		padding: 10px;
@@ -51,5 +60,16 @@
 		font: inherit;
 		cursor: pointer;
 		padding: 0;
+	}
+
+	div > button {
+		align-self: center;
+		background-color: antiquewhite;
+		border: none;
+		padding: 10px;
+		border-radius: 5px;
+		cursor: pointer;
+		text-align: center;
+		font-weight: bold;
 	}
 </style>

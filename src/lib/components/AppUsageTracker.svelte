@@ -11,15 +11,24 @@
 	let autoRefresh = writable<boolean>(false);
 	let intervalId: NodeJS.Timeout | null = null;
 
-	// Use fake data initially to ensure the graph works
 	let graphData = writable({
 		labels: ['App 1', 'App 2', 'App 3', 'App 4'],
 		datasets: [
 			{
 				label: 'App Usage Duration (seconds)',
 				data: [30, 60, 90, 120],
-				backgroundColor: 'rgba(75, 192, 192, 0.2)',
-				borderColor: 'rgba(75, 192, 192, 1)',
+				backgroundColor: [
+					'rgba(75, 192, 192, 0.2)',
+					'rgba(75, 192, 192, 0.2)',
+					'rgba(75, 192, 192, 0.2)',
+					'rgba(75, 192, 192, 0.2)'
+				],
+				borderColor: [
+					'rgba(75, 192, 192, 1)',
+					'rgba(75, 192, 192, 1)',
+					'rgba(75, 192, 192, 1)',
+					'rgba(75, 192, 192, 1)'
+				],
 				borderWidth: 1
 			}
 		]
@@ -30,7 +39,6 @@
 			const result: AppUsage[] = await invoke('get_tracked_apps');
 			trackedApps.set(result);
 
-			// Sort by duration and take the top 5
 			const topApps = result.sort((a, b) => b.duration - a.duration).slice(0, 5);
 
 			const labels = topApps.map((app) => app.app_name);
@@ -66,6 +74,7 @@
 			console.error('Failed to fetch tracked apps', error);
 		}
 	}
+
 	function toggleAutoRefresh() {
 		autoRefresh.update((value) => {
 			if (!value) {
